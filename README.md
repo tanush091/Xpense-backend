@@ -157,11 +157,33 @@ java -jar target/xpense-backend-1.0.0.jar
 
 ---
 
-## 🔒 Security Configuration
-
-- **CORS**: Configured in `CorsConfig.java` to permit requests from `http://localhost:5173`, `http://localhost:3000`, and `http://127.0.0.1:5173`.
+- **CORS**: Configured in `CorsConfig.java` and `SecurityConfig.java` to permit requests from `http://localhost:5173`, `http://localhost:3000`, `http://127.0.0.1:5173`, and all production origin patterns including `https://*.vercel.app`.
 - **Stateless Sessions**: JWT bearer tokens are validated per-request via `JwtAuthenticationFilter`.
 - **Password Protection**: Passwords hashed using Spring Security's BCrypt with salt rounds.
+
+---
+
+## ☁️ Deploy to Render
+
+1. Push this repository to GitHub (`Xpense-backend`).
+2. Go to [Render Dashboard](https://dashboard.render.com/) and click **"New +"** → **"Web Service"**.
+3. Connect your `Xpense-backend` repository.
+4. Render will automatically detect the **Dockerfile** in the repository.
+   - If deploying via Docker:
+     - **Runtime**: `Docker`
+     - **Health Check Path**: `/api/health`
+   - If deploying as Java Web Service:
+     - **Build Command**: `mvn clean package -DskipTests`
+     - **Start Command**: `java -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -jar target/xpense-backend-1.0.0.jar`
+     - **Health Check Path**: `/api/health`
+5. Under **Environment Variables**, add:
+   - `SPRING_PROFILES_ACTIVE`: `postgres` (to use PostgreSQL / Supabase)
+   - `SPRING_DATASOURCE_URL`: your Supabase/Postgres connection string (with `?sslmode=require`)
+   - `SPRING_DATASOURCE_USERNAME`: your database username
+   - `SPRING_DATASOURCE_PASSWORD`: your database password
+   - `APP_JWT_SECRET`: a 32+ character secret key
+   - `PORT`: (Render sets this automatically; the app automatically binds to it)
+6. Click **Create Web Service**. Once deployed, your backend will be live at `https://<your-service>.onrender.com`.
 
 ---
 
