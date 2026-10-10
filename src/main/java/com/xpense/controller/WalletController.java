@@ -2,6 +2,7 @@ package com.xpense.controller;
 
 import com.xpense.dto.ApiResponse;
 import com.xpense.dto.TopUpRequest;
+import com.xpense.dto.WalletUpdateRequest;
 import com.xpense.model.Wallet;
 import com.xpense.security.SecurityUtils;
 import com.xpense.service.WalletService;
@@ -31,7 +32,7 @@ public class WalletController {
 
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<Wallet>> getWalletById(@PathVariable String id) {
-        Wallet wallet = walletService.getWalletById(id);
+        Wallet wallet = walletService.getOwnedWallet(id, SecurityUtils.getAuthenticatedUserId());
         return ResponseEntity.ok(ApiResponse.success(wallet));
     }
 
@@ -39,19 +40,19 @@ public class WalletController {
     public ResponseEntity<ApiResponse<Wallet>> createWallet(@Valid @RequestBody Wallet wallet) {
         wallet.setUserId(SecurityUtils.getAuthenticatedUserId());
         Wallet created = walletService.createWallet(wallet);
-        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success("Wallet created successfully", created));
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success("Budget created", created));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<ApiResponse<Wallet>> updateWallet(@PathVariable String id, @RequestBody Wallet wallet) {
-        Wallet updated = walletService.updateWallet(id, wallet);
-        return ResponseEntity.ok(ApiResponse.success("Wallet updated successfully", updated));
+    public ResponseEntity<ApiResponse<Wallet>> updateWallet(@PathVariable String id, @RequestBody WalletUpdateRequest wallet) {
+        Wallet updated = walletService.updateWallet(id, SecurityUtils.getAuthenticatedUserId(), wallet);
+        return ResponseEntity.ok(ApiResponse.success("Budget updated", updated));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteWallet(@PathVariable String id) {
-        walletService.deleteWallet(id);
-        return ResponseEntity.ok(ApiResponse.success("Wallet deleted successfully", null));
+        walletService.deleteWallet(id, SecurityUtils.getAuthenticatedUserId());
+        return ResponseEntity.ok(ApiResponse.success("Budget deleted", null));
     }
 
     @PostMapping("/{id}/topup")
@@ -61,6 +62,6 @@ public class WalletController {
         String effectiveUserId = SecurityUtils.getAuthenticatedUserId();
         Wallet updated = walletService.topUpWallet(id, effectiveUserId, request.getAmount(),
                 Boolean.TRUE.equals(request.getFromAvailable()));
-        return ResponseEntity.ok(ApiResponse.success("Wallet topped up successfully", updated));
+        return ResponseEntity.ok(ApiResponse.success("Money added to budget", updated));
     }
 }

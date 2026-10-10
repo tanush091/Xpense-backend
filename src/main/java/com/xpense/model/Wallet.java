@@ -53,6 +53,12 @@ public class Wallet {
     @Column
     private String status = "Good";
 
+    /** Business dashboard: the budget that holds money set aside for tax. */
+    @Column(name = "is_tax_reserve")
+    @JsonProperty("is_tax_reserve")
+    @JsonAlias({"isTaxReserve", "is_tax_reserve"})
+    private Boolean isTaxReserve = false;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     @JsonProperty("created_at")
     @JsonAlias({"createdAt", "created_at"})
@@ -248,5 +254,16 @@ public class Wallet {
     @JsonAlias({"updatedAt", "updated_at"})
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    @JsonProperty("is_tax_reserve")
+    public Boolean getIsTaxReserve() {
+        return isTaxReserve;
+    }
+
+    @JsonProperty("is_tax_reserve")
+    @JsonAlias({"isTaxReserve", "is_tax_reserve"})
+    public void setIsTaxReserve(Boolean isTaxReserve) {
+        this.isTaxReserve = isTaxReserve;
     }
 }

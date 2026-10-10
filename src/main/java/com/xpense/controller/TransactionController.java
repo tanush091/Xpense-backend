@@ -34,7 +34,7 @@ public class TransactionController {
 
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<Transaction>> getTransactionById(@PathVariable String id) {
-        Transaction tx = transactionService.getTransactionById(id);
+        Transaction tx = transactionService.getOwnedTransaction(id, SecurityUtils.getAuthenticatedUserId());
         return ResponseEntity.ok(ApiResponse.success(tx));
     }
 
@@ -42,7 +42,7 @@ public class TransactionController {
     public ResponseEntity<ApiResponse<Transaction>> createTransaction(@Valid @RequestBody Transaction transaction) {
         transaction.setUserId(SecurityUtils.getAuthenticatedUserId());
         Transaction created = transactionService.createTransaction(transaction);
-        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success("Transaction recorded successfully", created));
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success("Saved", created));
     }
 
     @PostMapping("/transfer")
@@ -50,12 +50,12 @@ public class TransactionController {
             @Valid @RequestBody TransferRequest transferRequest) {
         String effectiveUserId = SecurityUtils.getAuthenticatedUserId();
         Transaction tx = transactionService.processTransfer(effectiveUserId, transferRequest);
-        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success("Transfer completed successfully", tx));
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success("Money sent", tx));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteTransaction(@PathVariable String id) {
-        transactionService.deleteTransaction(id);
-        return ResponseEntity.ok(ApiResponse.success("Transaction deleted successfully", null));
+        transactionService.deleteTransaction(id, SecurityUtils.getAuthenticatedUserId());
+        return ResponseEntity.ok(ApiResponse.success("Removed from your activity", null));
     }
 }

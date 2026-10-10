@@ -8,15 +8,15 @@ import jakarta.validation.constraints.Size;
 
 public class RegisterRequest {
 
-    @NotBlank(message = "Email is required")
-    @Email(message = "Invalid email format")
+    @NotBlank(message = "Please enter your email.")
+    @Email(message = "That email address doesn't look right.")
     private String email;
 
-    @NotBlank(message = "Password is required")
-    @Size(min = 6, message = "Password must be at least 6 characters")
+    @NotBlank(message = "Please choose a password.")
+    @Size(min = 6, message = "Your password needs at least 6 characters.")
     private String password;
 
-    @NotBlank(message = "Full name is required")
+    @NotBlank(message = "Please enter your full name.")
     @JsonProperty("full_name")
     @JsonAlias({"fullName", "full_name", "name"})
     private String fullName;

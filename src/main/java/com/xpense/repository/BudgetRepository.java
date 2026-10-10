@@ -11,4 +11,6 @@ import java.util.Optional;
 public interface BudgetRepository extends JpaRepository<Budget, String> {
     List<Budget> findByUserIdOrderByCategoryAsc(String userId);
     Optional<Budget> findByUserIdAndCategoryIgnoreCase(String userId, String category);
+
+    Optional<Budget> findByIdAndUserId(String id, String userId);
 }

@@ -67,6 +67,18 @@ public class UserProfile {
     @JsonAlias({"totalBalance", "total_balance"})
     private BigDecimal totalBalance = BigDecimal.ZERO;
 
+    /** Business dashboard: company or trading name. */
+    @Column(name = "business_name")
+    @JsonProperty("business_name")
+    @JsonAlias({"businessName", "business_name"})
+    private String businessName;
+
+    /** Business dashboard: share of money in to keep aside for tax, 0–60. */
+    @Column(name = "tax_reserve_percent", precision = 5, scale = 2)
+    @JsonProperty("tax_reserve_percent")
+    @JsonAlias({"taxReservePercent", "tax_reserve_percent"})
+    private BigDecimal taxReservePercent = BigDecimal.ZERO;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     @JsonProperty("created_at")
     @JsonAlias({"createdAt", "created_at"})
@@ -299,5 +311,27 @@ public class UserProfile {
     @JsonAlias({"updatedAt", "updated_at"})
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    @JsonProperty("business_name")
+    public String getBusinessName() {
+        return businessName;
+    }
+
+    @JsonProperty("business_name")
+    @JsonAlias({"businessName", "business_name"})
+    public void setBusinessName(String businessName) {
+        this.businessName = businessName;
+    }
+
+    @JsonProperty("tax_reserve_percent")
+    public BigDecimal getTaxReservePercent() {
+        return taxReservePercent;
+    }
+
+    @JsonProperty("tax_reserve_percent")
+    @JsonAlias({"taxReservePercent", "tax_reserve_percent"})
+    public void setTaxReservePercent(BigDecimal taxReservePercent) {
+        this.taxReservePercent = taxReservePercent;
     }
 }

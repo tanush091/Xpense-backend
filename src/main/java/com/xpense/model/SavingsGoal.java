@@ -48,6 +48,12 @@ public class SavingsGoal {
     @Column(length = 32)
     private String status = "in_progress"; // 'in_progress', 'completed', 'paused'
 
+    /** Personal dashboard: marks the goal used for "emergency fund cover". */
+    @Column(name = "is_emergency")
+    @JsonProperty("is_emergency")
+    @JsonAlias({"isEmergency", "is_emergency"})
+    private Boolean isEmergency = false;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     @JsonProperty("created_at")
     @JsonAlias({"createdAt", "created_at"})
@@ -228,5 +234,16 @@ public class SavingsGoal {
     @JsonAlias({"updatedAt", "updated_at"})
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    @JsonProperty("is_emergency")
+    public Boolean getIsEmergency() {
+        return isEmergency;
+    }
+
+    @JsonProperty("is_emergency")
+    @JsonAlias({"isEmergency", "is_emergency"})
+    public void setIsEmergency(Boolean isEmergency) {
+        this.isEmergency = isEmergency;
     }
 }

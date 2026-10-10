@@ -2,6 +2,7 @@ package com.xpense.controller;
 
 import com.xpense.dto.ApiResponse;
 import com.xpense.dto.GoalDepositRequest;
+import com.xpense.dto.GoalUpdateRequest;
 import com.xpense.model.SavingsGoal;
 import com.xpense.security.SecurityUtils;
 import com.xpense.service.SavingsGoalService;
@@ -31,7 +32,7 @@ public class SavingsGoalController {
 
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<SavingsGoal>> getGoalById(@PathVariable String id) {
-        SavingsGoal goal = savingsGoalService.getGoalById(id);
+        SavingsGoal goal = savingsGoalService.getOwnedGoal(id, SecurityUtils.getAuthenticatedUserId());
         return ResponseEntity.ok(ApiResponse.success(goal));
     }
 
@@ -39,26 +40,26 @@ public class SavingsGoalController {
     public ResponseEntity<ApiResponse<SavingsGoal>> createGoal(@Valid @RequestBody SavingsGoal goal) {
         goal.setUserId(SecurityUtils.getAuthenticatedUserId());
         SavingsGoal created = savingsGoalService.createGoal(goal);
-        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success("Savings goal created successfully", created));
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success("Goal created", created));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<ApiResponse<SavingsGoal>> updateGoal(@PathVariable String id, @RequestBody SavingsGoal goal) {
-        SavingsGoal updated = savingsGoalService.updateGoal(id, goal);
-        return ResponseEntity.ok(ApiResponse.success("Savings goal updated successfully", updated));
+    public ResponseEntity<ApiResponse<SavingsGoal>> updateGoal(@PathVariable String id, @RequestBody GoalUpdateRequest goal) {
+        SavingsGoal updated = savingsGoalService.updateGoal(id, SecurityUtils.getAuthenticatedUserId(), goal);
+        return ResponseEntity.ok(ApiResponse.success("Goal updated", updated));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteGoal(@PathVariable String id) {
-        savingsGoalService.deleteGoal(id);
-        return ResponseEntity.ok(ApiResponse.success("Savings goal deleted successfully", null));
+        savingsGoalService.deleteGoal(id, SecurityUtils.getAuthenticatedUserId());
+        return ResponseEntity.ok(ApiResponse.success("Goal deleted", null));
     }
 
     @PostMapping("/{id}/deposit")
     public ResponseEntity<ApiResponse<SavingsGoal>> depositToGoal(
             @PathVariable String id,
             @Valid @RequestBody GoalDepositRequest request) {
-        SavingsGoal updated = savingsGoalService.contributeToGoal(id, request.getAmount());
-        return ResponseEntity.ok(ApiResponse.success("Deposit successful", updated));
+        SavingsGoal updated = savingsGoalService.contributeToGoal(id, SecurityUtils.getAuthenticatedUserId(), request.getAmount());
+        return ResponseEntity.ok(ApiResponse.success("Savings added", updated));
     }
 }

@@ -13,6 +13,10 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import com.xpense.dto.AlertDTO;
+import com.xpense.dto.MonthlyTotalDTO;
+import com.xpense.dto.PayeeDTO;
+import java.time.YearMonth;
+import java.time.format.TextStyle;
 import com.xpense.model.Budget;
 import com.xpense.model.Wallet;
 import com.xpense.repository.BudgetRepository;
@@ -39,10 +43,6 @@ public class AnalyticsService {
     }
 
     public List<AlertDTO> getAlerts(String userId) {
-        if (userId == null || userId.isEmpty()) {
-            userId = UserProfileService.DEFAULT_USER_ID;
-        }
-
         List<AlertDTO> alerts = new ArrayList<>();
 
         // 1. Wallets health check (ADR-008: <10% Warning, <30% Low)
@@ -51,12 +51,15 @@ public class AnalyticsService {
             if (w.getBudgetLimit() != null && w.getBudgetLimit().compareTo(BigDecimal.ZERO) > 0) {
                 BigDecimal bal = w.getBalance() != null ? w.getBalance() : BigDecimal.ZERO;
                 double ratio = bal.doubleValue() / w.getBudgetLimit().doubleValue();
+                if (bal.signum() == 0 && transactionRepository.findFiltered(userId, null, "expense", w.getId()).isEmpty()) {
+                    continue; // never filled: not a problem yet
+                }
                 if (ratio < 0.10) {
                     alerts.add(new AlertDTO(
                             UUID.randomUUID().toString(),
                             "DANGER",
-                            "Envelope Warning",
-                            "Envelope '" + w.getName() + "' is critically low (< 10% remaining).",
+                            "Budget almost empty",
+                            w.getName() + " has less than 10% left.",
                             "WALLET",
                             w.getId()
                     ));
@@ -64,8 +67,8 @@ public class AnalyticsService {
                     alerts.add(new AlertDTO(
                             UUID.randomUUID().toString(),
                             "WARN",
-                            "Envelope Low",
-                            "Envelope '" + w.getName() + "' is running low (< 30% remaining).",
+                            "Budget running low",
+                            w.getName() + " has less than 30% left.",
                             "WALLET",
                             w.getId()
                     ));
@@ -105,10 +108,6 @@ public class AnalyticsService {
     }
 
     public AnalyticsSummaryDTO getAnalyticsSummary(String userId) {
-        if (userId == null || userId.isEmpty()) {
-            userId = UserProfileService.DEFAULT_USER_ID;
-        }
-
         AnalyticsSummaryDTO dto = new AnalyticsSummaryDTO();
         LocalDate now = LocalDate.now();
 
@@ -185,7 +184,7 @@ public class AnalyticsService {
                     .max(Map.Entry.comparingByValue())
                     .map(Map.Entry::getKey)
                     .orElse("Daily Life");
-            insights.add("Your highest expense category is " + topCategory + ". Consider reviewing your envelope limits.");
+            insights.add("Your highest expense category is " + topCategory + ". Check whether that budget's limit still fits.");
             if (pctChange > 15) {
                 insights.add("Monthly spending has risen by " + Math.round(pctChange) + "% compared to last month. Pace yourself!");
             } else if (pctChange < -5) {
@@ -198,5 +197,70 @@ public class AnalyticsService {
         dto.setAiInsights(insights);
 
         return dto;
+    }
+
+    /** Money in and money out for each of the last {@code months} calendar months, oldest first. */
+    public List<MonthlyTotalDTO> getMonthlyTotals(String userId, int months) {
+        YearMonth current = YearMonth.now();
+        YearMonth first = current.minusMonths(months - 1L);
+        LocalDateTime from = first.atDay(1).atStartOfDay();
+        LocalDateTime to = current.atEndOfMonth().atTime(LocalTime.MAX);
+
+        Map<YearMonth, BigDecimal[]> totals = new LinkedHashMap<>();
+        for (int i = 0; i < months; i++) {
+            totals.put(first.plusMonths(i), new BigDecimal[]{BigDecimal.ZERO, BigDecimal.ZERO});
+        }
+        for (Transaction tx : transactionRepository.findByUserIdAndDateBetween(userId, from, to)) {
+            if (tx.getDate() == null || tx.getAmount() == null) continue;
+            BigDecimal[] row = totals.get(YearMonth.from(tx.getDate()));
+            if (row == null) continue;
+            if ("income".equalsIgnoreCase(tx.getType())) {
+                row[0] = row[0].add(tx.getAmount());
+            } else {
+                row[1] = row[1].add(tx.getAmount());
+            }
+        }
+
+        List<MonthlyTotalDTO> result = new ArrayList<>();
+        totals.forEach((ym, row) -> result.add(new MonthlyTotalDTO(
+                ym.toString(),
+                ym.getMonth().getDisplayName(TextStyle.SHORT, Locale.ENGLISH),
+                row[0], row[1])));
+        return result;
+    }
+
+    /** Who received the most money between {@code from} and {@code to} (inclusive), biggest first. */
+    public List<PayeeDTO> getTopPayees(String userId, LocalDate from, LocalDate to, int limit) {
+        Map<String, BigDecimal> amounts = new HashMap<>();
+        Map<String, Integer> counts = new HashMap<>();
+        BigDecimal total = BigDecimal.ZERO;
+
+        for (Transaction tx : transactionRepository.findByUserIdAndDateBetween(userId, from.atStartOfDay(), to.atTime(LocalTime.MAX))) {
+            if ("income".equalsIgnoreCase(tx.getType()) || tx.getAmount() == null) continue;
+            String name = firstNonBlank(tx.getMerchant(), tx.getRecipient(), tx.getTitle(), "Other");
+            amounts.merge(name, tx.getAmount(), BigDecimal::add);
+            counts.merge(name, 1, Integer::sum);
+            total = total.add(tx.getAmount());
+        }
+
+        final BigDecimal grandTotal = total;
+        return amounts.entrySet().stream()
+                .sorted(Map.Entry.<String, BigDecimal>comparingByValue().reversed())
+                .limit(limit)
+                .map(e -> new PayeeDTO(
+                        e.getKey(),
+                        e.getValue(),
+                        grandTotal.signum() > 0
+                                ? e.getValue().multiply(BigDecimal.valueOf(100)).divide(grandTotal, 0, RoundingMode.HALF_UP).intValue()
+                                : 0,
+                        counts.get(e.getKey())))
+                .toList();
+    }
+
+    private static String firstNonBlank(String... values) {
+        for (String v : values) {
+            if (v != null && !v.isBlank()) return v.trim();
+        }
+        return "Other";
     }
 }

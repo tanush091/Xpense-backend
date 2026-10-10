@@ -13,6 +13,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -44,12 +45,19 @@ public class SecurityConfig {
             .headers(headers -> headers.frameOptions(frame -> frame.sameOrigin()))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                .requestMatchers("/api/auth/**").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/health", "/").permitAll()
                 .requestMatchers("/h2-console/**").permitAll()
                 .requestMatchers("/error").permitAll()
-                .requestMatchers("/api/**").permitAll() // Controller logic inspects security context for user isolation
+                .requestMatchers("/api/**").authenticated()
                 .anyRequest().permitAll()
             )
+            // Missing or invalid token -> 401 with the standard JSON envelope (the frontend signs out on 401)
+            .exceptionHandling(ex -> ex.authenticationEntryPoint((request, response, authException) -> {
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.setContentType("application/json;charset=UTF-8");
+                response.getWriter().write("{\"success\":false,\"message\":\"Please sign in to continue.\",\"data\":null}");
+            }))
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

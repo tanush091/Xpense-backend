@@ -51,13 +51,18 @@ public class AuthService {
         profile.setId(userId);
         profile.setEmail(cleanEmail);
         profile.setPasswordHash(hashedPassword);
-        profile.setFullName(request.getFullName().trim());
+        profile.setFullName(Inputs.requiredText(request.getFullName(), 100, "Your name", "Please enter your full name."));
         profile.setStudentId(cleanEmail);
         profile.setRole("user");
-        profile.setAccountType(request.getAccountType() != null ? request.getAccountType() : "Student Account");
+        profile.setAccountType(normalizeAccountType(request.getAccountType()));
         profile.setCurrency("INR");
         profile.setCurrencySymbol("₹");
         profile.setTotalBalance(BigDecimal.ZERO);
+        if (!profile.getAccountType().toLowerCase().contains("student")) {
+            // College details only apply to student accounts
+            profile.setUniversity("");
+            profile.setSemester("");
+        }
 
         UserProfile savedProfile = userProfileRepository.save(profile);
 
@@ -87,6 +92,18 @@ public class AuthService {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
     }
 
+    /** Accepts the three account types (and friendly spellings); anything else is a mistake. */
+    static String normalizeAccountType(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return "Student Account";
+        }
+        String t = raw.toLowerCase();
+        if (t.contains("student")) return "Student Account";
+        if (t.contains("personal")) return "Personal Account";
+        if (t.contains("corporate") || t.contains("business") || t.contains("saas")) return "Corporate SaaS";
+        throw new BadRequestException("Choose an account type: Student, Personal or Business.");
+    }
+
     private void provisionDefaultWallets(String userId, String accountType) {
         String type = (accountType != null) ? accountType.toLowerCase() : "student";
 
@@ -99,6 +116,7 @@ public class AuthService {
                     BigDecimal.ZERO, new BigDecimal("6000.00"), "Coffee", "#F59E0B");
             Wallet w4 = new Wallet("wallet-" + UUID.randomUUID(), userId, "Tax & Contingency Reserve", "Corporate Tax",
                     BigDecimal.ZERO, new BigDecimal("25000.00"), "ShieldCheck", "#10B981");
+            w4.setIsTaxReserve(true);
 
             walletRepository.saveAll(List.of(w1, w2, w3, w4));
         } else if (type.contains("personal")) {

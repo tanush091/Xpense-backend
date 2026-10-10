@@ -1,5 +1,7 @@
 package com.xpense.service;
 
+import com.xpense.dto.ProfileUpdateRequest;
+import com.xpense.exception.BadRequestException;
 import com.xpense.exception.ResourceNotFoundException;
 import com.xpense.model.UserProfile;
 import com.xpense.repository.UserProfileRepository;
@@ -19,72 +21,45 @@ public class UserProfileService {
         this.userProfileRepository = userProfileRepository;
     }
 
-    public UserProfile getDefaultProfile() {
-        return userProfileRepository.findById(DEFAULT_USER_ID)
-                .orElseGet(() -> {
-                    UserProfile profile = new UserProfile(
-                            DEFAULT_USER_ID,
-                            "128003008@sastra.ac.in",
-                            "Aditya Venkata Sai Burle",
-                            "128003008@sastra.ac.in",
-                            new BigDecimal("2450.00")
-                    );
-                    return userProfileRepository.save(profile);
-                });
-    }
-
     public UserProfile getProfile(String id) {
         return userProfileRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User profile not found with id: " + id));
     }
 
-    public UserProfile getProfileOrDefault(String id) {
-        if (id == null || id.isEmpty()) {
-            return getDefaultProfile();
-        }
-        return userProfileRepository.findById(id).orElseGet(this::getDefaultProfile);
+    /**
+     * Locks the user's profile row for the rest of the current transaction. Every action that
+     * moves money calls this first, so two requests from the same user can't both pass the
+     * "is there enough money" checks at the same time.
+     */
+    public UserProfile lockForMoneyChange(String id) {
+        return userProfileRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User profile not found."));
     }
 
+    /**
+     * Updates only the details that were sent. Balance, email, role and account type
+     * are never changed here: the balance only moves through money actions.
+     */
     @Transactional
-    public UserProfile updateProfile(String id, UserProfile updateData) {
-        UserProfile profile = userProfileRepository.findById(id)
-                .orElseGet(this::getDefaultProfile);
+    public UserProfile updateProfile(String id, ProfileUpdateRequest update) {
+        UserProfile profile = getProfile(id);
 
-        if (updateData.getFullName() != null && !updateData.getFullName().trim().isEmpty()) {
-            profile.setFullName(updateData.getFullName().trim());
+        if (update.getFullName() != null) {
+            profile.setFullName(Inputs.requiredText(update.getFullName(), 100, "Your name", "Your name can't be empty."));
         }
-        if (updateData.getEmail() != null && !updateData.getEmail().trim().isEmpty()) {
-            profile.setEmail(updateData.getEmail().trim());
+        if (update.getStudentId() != null) profile.setStudentId(Inputs.text(update.getStudentId(), 50, "The roll number"));
+        if (update.getUniversity() != null) profile.setUniversity(Inputs.text(update.getUniversity(), 120, "The college name"));
+        if (update.getSemester() != null) profile.setSemester(Inputs.text(update.getSemester(), 50, "The semester"));
+        if (update.getAvatarUrl() != null) profile.setAvatarUrl(Inputs.text(update.getAvatarUrl(), 255, "The picture link"));
+        if (update.getBusinessName() != null) {
+            profile.setBusinessName(Inputs.text(update.getBusinessName(), 120, "The business name"));
         }
-        if (updateData.getStudentId() != null && !updateData.getStudentId().trim().isEmpty()) {
-            profile.setStudentId(updateData.getStudentId().trim());
-        }
-        if (updateData.getUniversity() != null && !updateData.getUniversity().trim().isEmpty()) {
-            profile.setUniversity(updateData.getUniversity().trim());
-        }
-        if (updateData.getSemester() != null && !updateData.getSemester().trim().isEmpty()) {
-            profile.setSemester(updateData.getSemester().trim());
-        }
-        if (updateData.getAvatarUrl() != null) {
-            profile.setAvatarUrl(updateData.getAvatarUrl());
-        }
-        if (updateData.getRole() != null) {
-            profile.setRole(updateData.getRole());
-        }
-        // accountType is immutable per profile once created; do not overwrite if existing
-        if (profile.getAccountType() == null || profile.getAccountType().isEmpty()) {
-            if (updateData.getAccountType() != null && !updateData.getAccountType().trim().isEmpty()) {
-                profile.setAccountType(updateData.getAccountType().trim());
+        if (update.getTaxReservePercent() != null) {
+            BigDecimal pct = update.getTaxReservePercent();
+            if (pct.compareTo(BigDecimal.ZERO) < 0 || pct.compareTo(new BigDecimal("60")) > 0) {
+                throw new BadRequestException("Tax to set aside must be between 0% and 60%.");
             }
-        }
-        if (updateData.getCurrency() != null && !updateData.getCurrency().trim().isEmpty()) {
-            profile.setCurrency(updateData.getCurrency().trim());
-        }
-        if (updateData.getCurrencySymbol() != null && !updateData.getCurrencySymbol().trim().isEmpty()) {
-            profile.setCurrencySymbol(updateData.getCurrencySymbol().trim());
-        }
-        if (updateData.getTotalBalance() != null) {
-            profile.setTotalBalance(updateData.getTotalBalance());
+            profile.setTaxReservePercent(pct);
         }
 
         return userProfileRepository.save(profile);
@@ -92,13 +67,12 @@ public class UserProfileService {
 
     @Transactional
     public UserProfile adjustBalance(String id, BigDecimal delta) {
-        UserProfile profile = userProfileRepository.findById(id)
-                .orElseGet(this::getDefaultProfile);
+        UserProfile profile = getProfile(id);
 
         BigDecimal current = profile.getTotalBalance() != null ? profile.getTotalBalance() : BigDecimal.ZERO;
         BigDecimal updated = current.add(delta);
         if (updated.compareTo(BigDecimal.ZERO) < 0) {
-            updated = BigDecimal.ZERO;
+            throw new BadRequestException("You don't have enough money for this.");
         }
         profile.setTotalBalance(updated);
         return userProfileRepository.save(profile);

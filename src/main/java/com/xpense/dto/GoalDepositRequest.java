@@ -6,8 +6,8 @@ import java.math.BigDecimal;
 
 public class GoalDepositRequest {
 
-    @NotNull(message = "Amount is required")
-    @DecimalMin(value = "1.00", message = "Deposit amount must be at least 1.00")
+    @NotNull(message = "Enter an amount.")
+    @DecimalMin(value = "0.01", message = "Enter an amount greater than zero.")
     private BigDecimal amount;
 
     public GoalDepositRequest() {

@@ -9,11 +9,11 @@ public class TransferRequest {
 
     private String walletId;
 
-    @NotBlank(message = "Recipient is required")
+    @NotBlank(message = "Choose who to send money to.")
     private String recipient;
 
-    @NotNull(message = "Amount is required")
-    @DecimalMin(value = "1.00", message = "Amount must be at least 1.00")
+    @NotNull(message = "Enter an amount.")
+    @DecimalMin(value = "0.01", message = "Enter an amount greater than zero.")
     private BigDecimal amount;
 
     private String category = "Transfers";

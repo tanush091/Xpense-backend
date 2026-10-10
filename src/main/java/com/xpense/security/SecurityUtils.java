@@ -1,6 +1,6 @@
 package com.xpense.security;
 
-import com.xpense.service.UserProfileService;
+import com.xpense.exception.UnauthorizedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 
@@ -9,18 +9,16 @@ public final class SecurityUtils {
     private SecurityUtils() {
     }
 
-    public static String getCurrentUserId(String fallbackUserId) {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getPrincipal())) {
-            Object principal = auth.getPrincipal();
-            if (principal instanceof String s && !s.isEmpty()) {
-                return s;
-            }
-        }
-        return (fallbackUserId != null && !fallbackUserId.isEmpty()) ? fallbackUserId : UserProfileService.DEFAULT_USER_ID;
-    }
-
+    /**
+     * The signed-in user's id, taken only from the verified JWT (ARCHITECTURE rule 3).
+     * There is no fallback user: a request without a valid token is rejected.
+     */
     public static String getAuthenticatedUserId() {
-        return getCurrentUserId(null);
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.isAuthenticated() && auth.getPrincipal() instanceof String s
+                && !s.isEmpty() && !"anonymousUser".equals(s)) {
+            return s;
+        }
+        throw new UnauthorizedException("Please sign in to continue.");
     }
 }

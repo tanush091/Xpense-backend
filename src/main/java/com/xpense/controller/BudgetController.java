@@ -30,20 +30,19 @@ public class BudgetController {
 
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<Budget>> getBudgetById(@PathVariable String id) {
-        Budget budget = budgetService.getBudgetById(id);
+        Budget budget = budgetService.getOwnedBudget(id, SecurityUtils.getAuthenticatedUserId());
         return ResponseEntity.ok(ApiResponse.success(budget));
     }
 
     @PostMapping
     public ResponseEntity<ApiResponse<Budget>> createOrUpdateBudget(@Valid @RequestBody Budget budget) {
-        budget.setUserId(SecurityUtils.getAuthenticatedUserId());
-        Budget saved = budgetService.saveBudget(budget);
-        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success("Budget saved successfully", saved));
+        Budget saved = budgetService.saveBudget(SecurityUtils.getAuthenticatedUserId(), budget);
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success("Spending limit saved", saved));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteBudget(@PathVariable String id) {
-        budgetService.deleteBudget(id);
-        return ResponseEntity.ok(ApiResponse.success("Budget deleted successfully", null));
+        budgetService.deleteBudget(id, SecurityUtils.getAuthenticatedUserId());
+        return ResponseEntity.ok(ApiResponse.success("Spending limit deleted", null));
     }
 }

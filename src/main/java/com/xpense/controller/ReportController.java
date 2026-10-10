@@ -1,6 +1,7 @@
 package com.xpense.controller;
 
 import com.xpense.dto.ApiResponse;
+import com.xpense.exception.BadRequestException;
 import com.xpense.model.Transaction;
 import com.xpense.security.SecurityUtils;
 import com.xpense.service.ReportService;
@@ -31,6 +32,9 @@ public class ReportController {
             @RequestParam(value = "format", defaultValue = "json") String format) {
 
         String userId = SecurityUtils.getAuthenticatedUserId();
+        if (!"csv".equalsIgnoreCase(format) && !"json".equalsIgnoreCase(format)) {
+            throw new BadRequestException("Statements can be downloaded as csv or json.");
+        }
         List<Transaction> transactions = reportService.getReportTransactions(userId, from, to);
 
         if ("csv".equalsIgnoreCase(format)) {

@@ -1,6 +1,7 @@
 package com.xpense.controller;
 
 import com.xpense.dto.ApiResponse;
+import com.xpense.dto.ProfileUpdateRequest;
 import com.xpense.model.UserProfile;
 import com.xpense.security.SecurityUtils;
 import com.xpense.service.UserProfileService;
@@ -20,14 +21,14 @@ public class UserProfileController {
     @GetMapping
     public ResponseEntity<ApiResponse<UserProfile>> getCurrentProfile() {
         String effectiveUserId = SecurityUtils.getAuthenticatedUserId();
-        UserProfile profile = userProfileService.getProfileOrDefault(effectiveUserId);
+        UserProfile profile = userProfileService.getProfile(effectiveUserId);
         return ResponseEntity.ok(ApiResponse.success(profile));
     }
 
     @PutMapping
-    public ResponseEntity<ApiResponse<UserProfile>> updateProfile(@RequestBody UserProfile updateData) {
+    public ResponseEntity<ApiResponse<UserProfile>> updateProfile(@RequestBody ProfileUpdateRequest updateData) {
         String effectiveUserId = SecurityUtils.getAuthenticatedUserId();
         UserProfile updated = userProfileService.updateProfile(effectiveUserId, updateData);
-        return ResponseEntity.ok(ApiResponse.success("Profile updated successfully", updated));
+        return ResponseEntity.ok(ApiResponse.success("Settings saved", updated));
     }
 }

@@ -1,5 +1,6 @@
 package com.xpense.service;
 
+import com.xpense.exception.BadRequestException;
 import com.xpense.exception.ResourceNotFoundException;
 import com.xpense.model.Budget;
 import com.xpense.repository.BudgetRepository;
@@ -22,25 +23,30 @@ public class BudgetService {
         return budgetRepository.findByUserIdOrderByCategoryAsc(userId);
     }
 
-    public Budget getBudgetById(String id) {
-        return budgetRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Budget not found with id: " + id));
+    public Budget getOwnedBudget(String id, String userId) {
+        return budgetRepository.findByIdAndUserId(id, userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Spending limit not found."));
     }
 
+    /** Creates or updates the user's monthly limit for a category (one per category). */
     @Transactional
-    public Budget saveBudget(Budget budget) {
-        if (budget.getUserId() == null || budget.getUserId().isEmpty()) {
-            budget.setUserId(UserProfileService.DEFAULT_USER_ID);
+    public Budget saveBudget(String userId, Budget input) {
+        if (input.getCategory() == null || input.getCategory().isBlank()) {
+            throw new BadRequestException("Choose a category.");
         }
-        if (budget.getSpentAmount() == null) {
-            budget.setSpentAmount(BigDecimal.ZERO);
+        if (input.getLimitAmount() == null || input.getLimitAmount().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BadRequestException("The limit must be more than zero.");
         }
+        Budget budget = budgetRepository.findByUserIdAndCategoryIgnoreCase(userId, input.getCategory().trim())
+                .orElseGet(() -> new Budget(null, userId, input.getCategory().trim(), input.getLimitAmount(), BigDecimal.ZERO,
+                        input.getPeriod()));
+        budget.setLimitAmount(input.getLimitAmount());
         return budgetRepository.save(budget);
     }
 
     @Transactional
-    public void deleteBudget(String id) {
-        Budget budget = getBudgetById(id);
+    public void deleteBudget(String id, String userId) {
+        Budget budget = getOwnedBudget(id, userId);
         budgetRepository.delete(budget);
     }
 
